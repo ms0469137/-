@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>太清觀百萬小學堂</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
@@ -46,17 +46,16 @@
   </div>
 
 <script>
-/* ====== 0) 雲端排行榜設定（一定要填 /exec） ====== */
-const RANK_API = "https://solitary-bar-b15b.ms0469137.workers.dev";
-
+/* ========= 0) 雲端排行榜（Workers） ========= */
+const RANK_API = "https://solitary-bar-b15b.ms0469137.workers.dev"; // 你自己的 Workers 網址
 const RANK_TOKEN = "taiching2026";
 
-/* ====== 1) 題庫（JSON 載入） ====== */
+/* ========= 1) 題庫（JSON 載入） ========= */
 let questions = [];
 let current = 0;
 let score = 0;
 
-/* ====== 2) 畫面元素 ====== */
+/* ========= 2) 畫面元素 ========= */
 const startBtn    = document.getElementById("startBtn");
 const startScreen = document.getElementById("startScreen");
 const gameScreen  = document.getElementById("gameScreen");
@@ -75,7 +74,7 @@ const nameHint  = document.getElementById("nameHint");
 
 let cardEl = null;
 
-/* ====== 3) 音效 ====== */
+/* ========= 3) 音效 ========= */
 let audioCtx;
 function beep(type){
   try{
@@ -99,10 +98,10 @@ function beep(type){
   }catch(e){}
 }
 
-/* ====== 4) 雲端排行榜：寫入 / 讀取 ====== */
+/* ========= 4) 雲端排行榜（Workers API） ========= */
 async function saveToRank(name, score){
   try{
-    const url = `${RANK_API}?action=add&name=${encodeURIComponent(name)}&score=${encodeURIComponent(score)}&token=${encodeURIComponent(RANK_TOKEN)}&t=${Date.now()}`;
+    const url = `${RANK_API}/?action=add&name=${encodeURIComponent(name)}&score=${encodeURIComponent(score)}&token=${encodeURIComponent(RANK_TOKEN)}&t=${Date.now()}`;
     const res = await fetch(url, { cache: "no-store" });
     const data = await res.json();
     console.log("saveToRank:", data);
@@ -114,7 +113,7 @@ async function saveToRank(name, score){
 async function showRank(){
   rankList.innerHTML = "<li>載入中...</li>";
   try{
-    const url = `${RANK_API}?action=list&t=${Date.now()}`;
+    const url = `${RANK_API}/?action=list&t=${Date.now()}`;
     const res = await fetch(url, { cache: "no-store" });
     const data = await res.json();
 
@@ -124,7 +123,7 @@ async function showRank(){
       return;
     }
 
-    data.forEach(item => {
+    data.forEach((item) => {
       const li = document.createElement("li");
       li.textContent = `${item.name} — ${item.score} 分`;
       rankList.appendChild(li);
@@ -134,11 +133,10 @@ async function showRank(){
   }
 }
 
-/* ====== 5) 出題 ====== */
-function showQuestion() {
+/* ========= 5) 出題 ========= */
+function showQuestion(){
   const q = questions[current];
 
-  // 結束 → 上傳分數 → 顯示雲端榜
   if (!q) {
     const name = localStorage.getItem("player_name") || "匿名";
 
@@ -166,8 +164,8 @@ function showQuestion() {
   });
 }
 
-/* ====== 6) 作答 ====== */
-function answer(i) {
+/* ========= 6) 作答 ========= */
+function answer(i){
   const q = questions[current];
   document.querySelectorAll("#choices button").forEach(b => b.classList.add("locked"));
 
@@ -182,7 +180,6 @@ function answer(i) {
       cardEl.classList.add("flash-gold","pop-ok");
       setTimeout(()=>cardEl.classList.remove("flash-gold","pop-ok"), 600);
     }
-
     score++;
   } else {
     resultEl.textContent = "❌ 答錯了";
@@ -201,7 +198,7 @@ function answer(i) {
   setTimeout(showQuestion, 350);
 }
 
-/* ====== 7) 載入題庫 ====== */
+/* ========= 7) 載入題庫 ========= */
 async function loadQuestions(){
   try{
     const res = await fetch("./questions.json", { cache: "no-store" });
@@ -212,12 +209,12 @@ async function loadQuestions(){
     return true;
   }catch(err){
     console.error("題庫載入失敗：", err);
-    alert("題庫載入失敗，請確認 questions.json 是否存在且格式正確。");
+    alert("題庫載入失敗：請確認 questions.json 是否存在且格式正確，且你是用 GitHub Pages 開啟（不是 file://）。");
     return false;
   }
 }
 
-/* ====== 8) 開始 / 重來 ====== */
+/* ========= 8) 開始 / 重來 ========= */
 startBtn.addEventListener("click", async () => {
   const name = nameInput.value.trim();
   if (!name) {
@@ -251,8 +248,6 @@ restartBtn.addEventListener("click", () => {
 const savedName = localStorage.getItem("player_name");
 if (savedName) nameInput.value = savedName;
 </script>
-
-
 
 </body>
 </html>

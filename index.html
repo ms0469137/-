@@ -46,16 +46,16 @@
   </div>
 
 <script>
-/* ======================
-   ① 題庫（改成 JSON 載入）
-====================== */
-let questions = [];   // ← 注意：變成 let，等 fetch 後才有資料
+/* ====== 0) 雲端排行榜設定（一定要填 /exec） ====== */
+const RANK_API = "https://script.google.com/macros/s/AKfycbwxJLqGtNM25UzwicVVEPJHWAFCzuiM4claVnLM749mDm1DR73pPk3WypywFJAmHIkx/exec"; // ← 改成你的 /exec
+const RANK_TOKEN = "taiching2026";
+
+/* ====== 1) 題庫（JSON 載入） ====== */
+let questions = [];
 let current = 0;
 let score = 0;
 
-/* ======================
-   ② 畫面元素
-====================== */
+/* ====== 2) 畫面元素 ====== */
 const startBtn    = document.getElementById("startBtn");
 const startScreen = document.getElementById("startScreen");
 const gameScreen  = document.getElementById("gameScreen");
@@ -74,9 +74,7 @@ const nameHint  = document.getElementById("nameHint");
 
 let cardEl = null;
 
-/* ======================
-   ③ 音效
-====================== */
+/* ====== 3) 音效 ====== */
 let audioCtx;
 function beep(type){
   try{
@@ -100,48 +98,55 @@ function beep(type){
   }catch(e){}
 }
 
-/* ======================
-   ④ 排行榜（本機）
-====================== */
-function saveToRank(name, score) {
-  const key = "quiz_rank";
-  const data = JSON.parse(localStorage.getItem(key) || "[]");
-  data.push({ name, score, time: Date.now() });
-  data.sort((a, b) => b.score - a.score);
-  localStorage.setItem(key, JSON.stringify(data.slice(0, 10)));
+/* ====== 4) 雲端排行榜：寫入 / 讀取 ====== */
+async function saveToRank(name, score){
+  try{
+    await fetch(RANK_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, score, token: RANK_TOKEN })
+    });
+  }catch(e){}
 }
 
-function showRank() {
-  const data = JSON.parse(localStorage.getItem("quiz_rank") || "[]");
-  rankList.innerHTML = "";
+async function showRank(){
+  rankList.innerHTML = "<li>載入中...</li>";
+  try{
+    const res = await fetch(RANK_API, { cache: "no-store" });
+    const data = await res.json();
 
-  if (data.length === 0) {
-    rankList.innerHTML = "<li>目前還沒有紀錄</li>";
-    return;
+    rankList.innerHTML = "";
+    if (!Array.isArray(data) || data.length === 0) {
+      rankList.innerHTML = "<li>目前還沒有紀錄</li>";
+      return;
+    }
+
+    data.forEach(item => {
+      const li = document.createElement("li");
+      // ✅ <ol> 會自動編號，所以不要自己加 1.2.3
+      li.textContent = `${item.name} — ${item.score} 分`;
+      rankList.appendChild(li);
+    });
+  }catch(e){
+    rankList.innerHTML = "<li>排行榜載入失敗</li>";
   }
-
-  data.forEach((item, i) => {
-    const li = document.createElement("li");
-    // ✅ 用 <ol> 自動編號，所以這裡不要再加 i+1
-    li.textContent = `${item.name} — ${item.score} 分`;
-    rankList.appendChild(li);
-  });
 }
 
-/* ======================
-   ⑤ 出題
-====================== */
+/* ====== 5) 出題 ====== */
 function showQuestion() {
   const q = questions[current];
 
-  // 題目結束 → 排行榜
+  // 結束 → 上傳分數 → 顯示雲端榜
   if (!q) {
     const name = localStorage.getItem("player_name") || "匿名";
-    saveToRank(name, score);
 
-    gameScreen.style.display = "none";
-    rankScreen.style.display = "block";
-    showRank();
+    (async () => {
+      await saveToRank(name, score);
+      gameScreen.style.display = "none";
+      rankScreen.style.display = "block";
+      await showRank();
+    })();
+
     return;
   }
 
@@ -159,12 +164,9 @@ function showQuestion() {
   });
 }
 
-/* ======================
-   ⑥ 作答
-====================== */
+/* ====== 6) 作答 ====== */
 function answer(i) {
   const q = questions[current];
-
   document.querySelectorAll("#choices button").forEach(b => b.classList.add("locked"));
 
   if (i === q.answer) {
@@ -197,18 +199,13 @@ function answer(i) {
   setTimeout(showQuestion, 350);
 }
 
-/* ======================
-   ⑦ 載入題庫（重要）
-====================== */
+/* ====== 7) 載入題庫 ====== */
 async function loadQuestions(){
   try{
     const res = await fetch("./questions.json", { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-
-    // 基本檢查（避免 JSON 壞掉）
     if (!Array.isArray(data) || data.length === 0) throw new Error("題庫格式錯誤或為空");
-
     questions = data;
     return true;
   }catch(err){
@@ -218,9 +215,7 @@ async function loadQuestions(){
   }
 }
 
-/* ======================
-   ⑧ 開始 / 重來
-====================== */
+/* ====== 8) 開始 / 重來 ====== */
 startBtn.addEventListener("click", async () => {
   const name = nameInput.value.trim();
   if (!name) {
@@ -230,7 +225,6 @@ startBtn.addEventListener("click", async () => {
   nameHint.textContent = "";
   localStorage.setItem("player_name", name);
 
-  // 每次開始都重新載入題庫（確保你更新 JSON 後能吃到）
   const ok = await loadQuestions();
   if (!ok) return;
 
@@ -251,10 +245,11 @@ restartBtn.addEventListener("click", () => {
   startScreen.style.display = "block";
 });
 
-// 進來先把已存的道號帶回輸入框（方便重玩）
+// 帶回已存道號
 const savedName = localStorage.getItem("player_name");
 if (savedName) nameInput.value = savedName;
 </script>
+
 
 
 </body>

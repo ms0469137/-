@@ -10,12 +10,13 @@
 <body>
   <div class="app">
 
+    <!-- 開始畫面 -->
     <div id="startScreen">
       <div class="cover-wrap">
         <img src="cover.jpg" class="cover" alt="百萬小學堂">
 
-<div class="name-wrap">
-          <input id="nameInput" class="name-input" placeholder="輸入暱稱（例：小明）" />
+        <div class="name-wrap">
+          <input id="nameInput" class="name-input" placeholder="輸入您的道號" />
           <div id="nameHint" class="name-hint"></div>
         </div>
 
@@ -23,6 +24,7 @@
       </div>
     </div>
 
+    <!-- 遊戲畫面 -->
     <div id="gameScreen" style="display:none;">
       <div class="card">
         <p id="question"></p>
@@ -32,7 +34,8 @@
       </div>
     </div>
 
-<div id="rankScreen" style="display:none;">
+    <!-- 排行榜 -->
+    <div id="rankScreen" style="display:none;">
       <div class="card">
         <h2>🏆 排行榜</h2>
         <ol id="rankList"></ol>
@@ -42,191 +45,217 @@
 
   </div>
 
+<script>
+/* ======================
+   ① 題庫（改成 JSON 載入）
+====================== */
+let questions = [];   // ← 注意：變成 let，等 fetch 後才有資料
+let current = 0;
+let score = 0;
 
-  <script>
-  // ① 題庫
-  const questions = [
-    {
-      question: "修行中常說的「放下」，比較接近哪一種狀態？",
-      choices: ["什麼都不在乎", "不再被執著牽著走", "逃避現實生活", "斷絕所有關係"],
-      answer: 1
-    },
-    {
-      question: "佛教所說的「覺」，最接近下列哪個意思？",
-      choices: ["獲得特殊能力", "對世界真相的清楚看見", "情緒永遠平靜", "知道很多經文"],
-      answer: 1
-    },
-    {
-      question: "道教修行中強調「順其自然」，並不是指什麼？",
-      choices: ["尊重事情本來的節奏", "不強求、不逆勢", "什麼都不做", "與萬物和諧共處"],
-      answer: 2
-    },
-    {
-      question: "修行中遇到煩惱時，下列哪一種態度最接近正確方向？",
-      choices: ["壓抑情緒不要想", "怪自己修得不夠好", "觀察它、理解它的來源", "馬上用其他事轉移注意"],
-      answer: 2
-    },
-    {
-      question: "佛教中所說的「無常」，真正提醒修行人的是什麼？",
-      choices: ["人生是痛苦的", "一切都沒有價值", "不要執著於必然不變", "世界是虛假的"],
-      answer: 2
-    },
-    {
-      question: "道教修行中重視「清靜」，比較接近下列哪一種狀態？",
-      choices: ["離群索居", "外在完全安靜", "內心少欲、不被拉扯", "每天固定打坐"],
-      answer: 2
-    },
-    {
-      question: "真正的修行，最可能發生在哪個時刻？",
-      choices: ["打坐或誦經時", "在山中閉關時", "生活中起煩惱的當下", "完成儀式之後"],
-      answer: 2
-    },
-    {
-      question: "佛教與道教在修行上，最重要的共同點是什麼？",
-      choices: ["追求神通感應", "重視外在形式", "回到對內心的觀照", "依賴宗教師指引"],
-      answer: 2
-    },
-    {
-      question: "修行路上，哪一種狀態最容易讓人停滯不前？",
-      choices: ["偶爾懷疑自己", "感到困惑與迷惘", "自以為已經懂了", "修行進展緩慢"],
-      answer: 2
-    },
-    {
-      question: "修行的成果，最可能從哪裡被看見？",
-      choices: ["言語變得高深", "情緒起伏變少、覺察變快", "生活變得順利", "他人對你的評價"],
-      answer: 1
-    }
-  ];
+/* ======================
+   ② 畫面元素
+====================== */
+const startBtn    = document.getElementById("startBtn");
+const startScreen = document.getElementById("startScreen");
+const gameScreen  = document.getElementById("gameScreen");
 
-  let current = 0;
-  let score = Number(localStorage.getItem("score") ?? 0);
+const questionEl = document.getElementById("question");
+const choicesEl  = document.getElementById("choices");
+const resultEl   = document.getElementById("result");
+const scoreEl    = document.getElementById("score");
 
-  // ② 抓畫面元素（全部放一起，避免 undefined）
-  const startBtn    = document.getElementById("startBtn");
-  const startScreen = document.getElementById("startScreen");
-  const gameScreen  = document.getElementById("gameScreen");
+const rankScreen = document.getElementById("rankScreen");
+const rankList   = document.getElementById("rankList");
+const restartBtn = document.getElementById("restartBtn");
 
-  const questionEl = document.getElementById("question");
-  const choicesEl  = document.getElementById("choices");
-  const resultEl   = document.getElementById("result");
-  const scoreEl    = document.getElementById("score");
+const nameInput = document.getElementById("nameInput");
+const nameHint  = document.getElementById("nameHint");
 
-  const rankScreen = document.getElementById("rankScreen");
-  const rankList   = document.getElementById("rankList");
-  const restartBtn = document.getElementById("restartBtn");
+let cardEl = null;
 
-  // ✅ cardEl 先宣告，按開始後再抓
-  let cardEl = null;
+/* ======================
+   ③ 音效
+====================== */
+let audioCtx;
+function beep(type){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = audioCtx;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
 
-  // ③ 排行榜
-  function saveToRank(name, score) {
-    const key = "quiz_rank";
-    const data = JSON.parse(localStorage.getItem(key) || "[]");
+    const ok = type === "ok";
+    o.type = ok ? "triangle" : "sine";
+    o.frequency.value = ok ? 880 : 180;
 
-    data.push({ name, score, time: Date.now() });
-    data.sort((a, b) => b.score - a.score);
+    const now = ctx.currentTime;
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(ok ? 0.22 : 0.28, now + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + (ok ? 0.14 : 0.18));
 
-    localStorage.setItem(key, JSON.stringify(data.slice(0, 10)));
+    o.start(now);
+    o.stop(now + (ok ? 0.16 : 0.20));
+  }catch(e){}
+}
+
+/* ======================
+   ④ 排行榜（本機）
+====================== */
+function saveToRank(name, score) {
+  const key = "quiz_rank";
+  const data = JSON.parse(localStorage.getItem(key) || "[]");
+  data.push({ name, score, time: Date.now() });
+  data.sort((a, b) => b.score - a.score);
+  localStorage.setItem(key, JSON.stringify(data.slice(0, 10)));
+}
+
+function showRank() {
+  const data = JSON.parse(localStorage.getItem("quiz_rank") || "[]");
+  rankList.innerHTML = "";
+
+  if (data.length === 0) {
+    rankList.innerHTML = "<li>目前還沒有紀錄</li>";
+    return;
   }
 
-  function showRank() {
-    const data = JSON.parse(localStorage.getItem("quiz_rank") || "[]");
-    rankList.innerHTML = "";
-
-    if (data.length === 0) {
-      rankList.innerHTML = "<li>目前還沒有紀錄</li>";
-      return;
-    }
-
-    data.forEach((item, i) => {
-      const li = document.createElement("li");
-      li.textContent = `${i + 1}. ${item.name} — ${item.score} 分`;
-      rankList.appendChild(li);
-    });
-  }
-
-  restartBtn.addEventListener("click", () => {
-    current = 0;
-    score = 0;
-    localStorage.setItem("score", 0);
-
-    rankScreen.style.display = "none";
-    startScreen.style.display = "block";
+  data.forEach((item, i) => {
+    const li = document.createElement("li");
+    // ✅ 用 <ol> 自動編號，所以這裡不要再加 i+1
+    li.textContent = `${item.name} — ${item.score} 分`;
+    rankList.appendChild(li);
   });
+}
 
-  // ④ 出題（✅ 你原本少掉的就是這整段「正常出題」）
-  function showQuestion() {
-    const q = questions[current];
+/* ======================
+   ⑤ 出題
+====================== */
+function showQuestion() {
+  const q = questions[current];
 
-    // 題目結束 → 排行榜
-    if (!q) {
-      const name = localStorage.getItem("player_name") || "匿名";
-      saveToRank(name, score);
+  // 題目結束 → 排行榜
+  if (!q) {
+    const name = localStorage.getItem("player_name") || "匿名";
+    saveToRank(name, score);
 
-      gameScreen.style.display = "none";
-      rankScreen.style.display = "block";
-      showRank();
-      return;
-    }
-
-    // 正常出題
-    questionEl.textContent = q.question;
-    choicesEl.innerHTML = "";
-    resultEl.textContent = "";
-    resultEl.className = "";
-    scoreEl.textContent = `目前分數：${score}`;
-
-    q.choices.forEach((text, i) => {
-      const btn = document.createElement("button");
-      btn.textContent = text;
-      btn.onclick = () => answer(i);
-      choicesEl.appendChild(btn);
-    });
+    gameScreen.style.display = "none";
+    rankScreen.style.display = "block";
+    showRank();
+    return;
   }
 
-  // ⑤ 作答
-  function answer(i) {
-    const q = questions[current];
+  questionEl.textContent = q.question;
+  choicesEl.innerHTML = "";
+  resultEl.textContent = "";
+  resultEl.className = "";
+  scoreEl.textContent = `目前分數：${score}`;
 
-    if (i === q.answer) {
-      resultEl.textContent = "✅ 答對了！";
-      resultEl.className = "ok";
-
-      // 金色閃光
-      if (cardEl) {
-        cardEl.classList.remove("flash-gold");
-        void cardEl.offsetWidth;
-        cardEl.classList.add("flash-gold");
-      }
-
-      score++;
-      localStorage.setItem("score", score);
-    } else {
-      resultEl.textContent = "❌ 答錯了";
-      resultEl.className = "bad";
-    }
-
-    current++;
-    setTimeout(showQuestion, 300);
-  }
-
-  // ⑥ 開始
-  startBtn.addEventListener("click", () => {
-    startScreen.style.display = "none";
-    rankScreen.style.display = "none";
-    gameScreen.style.display = "block";
-
-    // ✅ 一定抓到題目那張 card（避免抓到排行榜的 card）
-    cardEl = gameScreen.querySelector(".card");
-
-    // 重新開始一場（可選：你要累積分數就把這兩行拿掉）
-    current = 0;
-    score = 0;
-    localStorage.setItem("score", score);
-
-    showQuestion();
+  q.choices.forEach((text, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = text;
+    btn.onclick = () => answer(i);
+    choicesEl.appendChild(btn);
   });
+}
+
+/* ======================
+   ⑥ 作答
+====================== */
+function answer(i) {
+  const q = questions[current];
+
+  document.querySelectorAll("#choices button").forEach(b => b.classList.add("locked"));
+
+  if (i === q.answer) {
+    resultEl.textContent = "✅ 答對了！";
+    resultEl.className = "ok";
+    beep("ok");
+
+    if (cardEl) {
+      cardEl.classList.remove("flash-gold","pop-ok","shake-bad");
+      void cardEl.offsetWidth;
+      cardEl.classList.add("flash-gold","pop-ok");
+      setTimeout(()=>cardEl.classList.remove("flash-gold","pop-ok"), 600);
+    }
+
+    score++;
+  } else {
+    resultEl.textContent = "❌ 答錯了";
+    resultEl.className = "bad";
+    beep("bad");
+
+    if (cardEl) {
+      cardEl.classList.remove("flash-gold","pop-ok","shake-bad");
+      void cardEl.offsetWidth;
+      cardEl.classList.add("shake-bad");
+      setTimeout(()=>cardEl.classList.remove("shake-bad"), 400);
+    }
+  }
+
+  current++;
+  setTimeout(showQuestion, 350);
+}
+
+/* ======================
+   ⑦ 載入題庫（重要）
+====================== */
+async function loadQuestions(){
+  try{
+    const res = await fetch("./questions.json", { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    // 基本檢查（避免 JSON 壞掉）
+    if (!Array.isArray(data) || data.length === 0) throw new Error("題庫格式錯誤或為空");
+
+    questions = data;
+    return true;
+  }catch(err){
+    console.error("題庫載入失敗：", err);
+    alert("題庫載入失敗，請確認 questions.json 是否存在且格式正確。");
+    return false;
+  }
+}
+
+/* ======================
+   ⑧ 開始 / 重來
+====================== */
+startBtn.addEventListener("click", async () => {
+  const name = nameInput.value.trim();
+  if (!name) {
+    nameHint.textContent = "請先輸入道號";
+    return;
+  }
+  nameHint.textContent = "";
+  localStorage.setItem("player_name", name);
+
+  // 每次開始都重新載入題庫（確保你更新 JSON 後能吃到）
+  const ok = await loadQuestions();
+  if (!ok) return;
+
+  startScreen.style.display = "none";
+  rankScreen.style.display = "none";
+  gameScreen.style.display = "block";
+
+  cardEl = gameScreen.querySelector(".card");
+
+  current = 0;
+  score = 0;
+
+  showQuestion();
+});
+
+restartBtn.addEventListener("click", () => {
+  rankScreen.style.display = "none";
+  startScreen.style.display = "block";
+});
+
+// 進來先把已存的道號帶回輸入框（方便重玩）
+const savedName = localStorage.getItem("player_name");
+if (savedName) nameInput.value = savedName;
 </script>
+
 
 </body>
 </html>

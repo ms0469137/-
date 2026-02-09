@@ -267,3 +267,30 @@ startBtn.addEventListener("click", () => {
   background: linear-gradient(135deg,#fde047,#f59e0b);
   color: #1f2937;
 }
+/* ✅/❌ 動畫 */
+@keyframes popOK{
+  0%{ transform: scale(1); }
+  35%{ transform: scale(1.02); }
+  100%{ transform: scale(1); }
+}
+@keyframes shakeBad{
+  0%,100%{ transform: translateX(0); }
+  20%{ transform: translateX(-6px); }
+  40%{ transform: translateX(6px); }
+  60%{ transform: translateX(-4px); }
+  80%{ transform: translateX(4px); }
+}
+
+/* 套用在題目卡片 */
+.card.pop-ok{ animation: popOK .22s ease; }
+.card.shake-bad{ animation: shakeBad .35s ease; }
+
+/* 結果文字更有感 */
+#result.ok{ animation: popOK .22s ease; }
+#result.bad{ animation: shakeBad .35s ease; }
+
+/* 作答後先鎖住按鈕（避免連點） */
+#choices button.locked{
+  pointer-events: none;
+  opacity: .65;
+}

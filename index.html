@@ -102,18 +102,20 @@ function beep(type){
 /* ====== 4) 雲端排行榜：寫入 / 讀取 ====== */
 async function saveToRank(name, score){
   try{
-    await fetch(RANK_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, score, token: RANK_TOKEN })
-    });
-  }catch(e){}
+    const url = `${RANK_API}?action=add&name=${encodeURIComponent(name)}&score=${encodeURIComponent(score)}&token=${encodeURIComponent(RANK_TOKEN)}&t=${Date.now()}`;
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json();
+    console.log("saveToRank:", data);
+  }catch(e){
+    console.log("saveToRank failed:", e);
+  }
 }
 
 async function showRank(){
   rankList.innerHTML = "<li>載入中...</li>";
   try{
-    const res = await fetch(RANK_API, { cache: "no-store" });
+    const url = `${RANK_API}?action=list&t=${Date.now()}`;
+    const res = await fetch(url, { cache: "no-store" });
     const data = await res.json();
 
     rankList.innerHTML = "";
@@ -124,7 +126,6 @@ async function showRank(){
 
     data.forEach(item => {
       const li = document.createElement("li");
-      // ✅ <ol> 會自動編號，所以不要自己加 1.2.3
       li.textContent = `${item.name} — ${item.score} 分`;
       rankList.appendChild(li);
     });

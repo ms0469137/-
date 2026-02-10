@@ -21,6 +21,11 @@
         </div>
 
         <button id="startBtn" class="start-on-cover">開始挑戰</button>
+
+        <!-- ✅ 新增：開始頁的排行榜按鈕 -->
+        <button id="rankBtn" class="start-on-cover" style="margin-top:12px; opacity:.95;">
+          查看排行榜
+        </button>
       </div>
     </div>
 
@@ -39,7 +44,11 @@
       <div class="card">
         <h2>🏆 排行榜</h2>
         <ol id="rankList"></ol>
+
         <button id="restartBtn">再玩一次</button>
+
+        <!-- ✅ 新增：排行榜返回首頁 -->
+        <button id="backHomeBtn">返回首頁</button>
       </div>
     </div>
 
@@ -49,7 +58,6 @@
 /* ========= 0) 雲端排行榜（Workers） ========= */
 const RANK_API = "https://quiz-rank-api.ms0469137.workers.dev";
 const RANK_TOKEN = "taiching2026";
-
 
 /* ========= 1) 題庫（JSON 載入） ========= */
 let questions = [];
@@ -72,6 +80,9 @@ const restartBtn = document.getElementById("restartBtn");
 
 const nameInput = document.getElementById("nameInput");
 const nameHint  = document.getElementById("nameHint");
+
+const rankBtn = document.getElementById("rankBtn");         // ✅ 新增
+const backHomeBtn = document.getElementById("backHomeBtn"); // ✅ 新增
 
 let cardEl = null;
 
@@ -215,7 +226,7 @@ async function loadQuestions(){
   }
 }
 
-/* ========= 8) 開始 / 重來 ========= */
+/* ========= 8) 開始 / 重來 / 看榜 / 返回 ========= */
 startBtn.addEventListener("click", async () => {
   const name = nameInput.value.trim();
   if (!name) {
@@ -242,6 +253,21 @@ startBtn.addEventListener("click", async () => {
 
 restartBtn.addEventListener("click", () => {
   rankScreen.style.display = "none";
+  startScreen.style.display = "block";
+});
+
+// ✅ 開始頁 → 看排行榜（不需要先玩）
+rankBtn.addEventListener("click", async () => {
+  startScreen.style.display = "none";
+  gameScreen.style.display = "none";
+  rankScreen.style.display = "block";
+  await showRank();
+});
+
+// ✅ 排行榜 → 返回首頁
+backHomeBtn.addEventListener("click", () => {
+  rankScreen.style.display = "none";
+  gameScreen.style.display = "none";
   startScreen.style.display = "block";
 });
 
